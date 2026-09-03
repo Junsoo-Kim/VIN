@@ -1,5 +1,7 @@
 package dsp.backend.controller;
 
+import dsp.backend.aop.LockAcquisitionException;
+import dsp.backend.service.PortfolioLockFacade;
 import dsp.backend.service.PortfolioService;
 import dsp.backend.service.ResourceNotFoundException;
 import dsp.backend.utils.CountryEnum;
@@ -17,13 +19,18 @@ public class PortfolioController {
     @Autowired
     private PortfolioService portfolioService;
 
+    @Autowired
+    private PortfolioLockFacade portfolioLockFacade;
+
     @PostMapping
     public ResponseEntity<String> addPortfolio(@RequestBody PortfolioRequest request) {
         try {
-            portfolioService.addPortfolio(request.getUserId(), request.getEtfCode(), request.getCount());
+            portfolioLockFacade.addPortfolio(request.getUserId(), request.getEtfCode(), request.getCount());
             return ResponseEntity.noContent().build();
         } catch (ResourceNotFoundException e) {
             return ResponseEntity.status(404).body("존재하지 않는 정보");
+        } catch (LockAcquisitionException e) {
+            return ResponseEntity.status(409).body(e.getMessage());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(400).body(e.getMessage());
         }
@@ -32,10 +39,12 @@ public class PortfolioController {
     @DeleteMapping
     public ResponseEntity<String> deletePortfolio(@RequestBody PortfolioRequest request) {
         try {
-            portfolioService.deletePortfolio(request.getUserId(), request.getEtfCode());
+            portfolioLockFacade.deletePortfolio(request.getUserId(), request.getEtfCode());
             return ResponseEntity.noContent().build();
         } catch (ResourceNotFoundException e) {
             return ResponseEntity.status(404).body("존재하지 않는 정보");
+        } catch (LockAcquisitionException e) {
+            return ResponseEntity.status(409).body(e.getMessage());
         }
     }
 

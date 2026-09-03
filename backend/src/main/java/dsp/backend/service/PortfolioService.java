@@ -10,6 +10,7 @@ import dsp.backend.utils.CountryEnum;
 import dsp.backend.repository.ETFRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
@@ -29,7 +30,8 @@ public class PortfolioService {
     @Autowired
     private ETFRepository etfRepository;
 
-    public void addPortfolio(String userId, String etfCode, Integer count) {
+    @Transactional
+    public Portfolio addPortfolio(String userId, String etfCode, Integer count) {
         try {
             etfCode = URLDecoder.decode(etfCode, "UTF-8");
         } catch (UnsupportedEncodingException e) {
@@ -58,9 +60,10 @@ public class PortfolioService {
             portfolio.setCount(count);
         }
 
-        portfolioRepository.save(portfolio);
+        return portfolioRepository.save(portfolio);
     }
 
+    @Transactional
     public void deletePortfolio(String userId, String etfCode) {
         userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("존재하지 않는 정보"));
         etfRepository.findBySymbol(etfCode).orElseThrow(() -> new ResourceNotFoundException("존재하지 않는 정보"));
@@ -71,12 +74,13 @@ public class PortfolioService {
         portfolioRepository.delete(portfolio);
     }
 
+    @Transactional(readOnly = true)
     public List<PortfolioController.PortfolioResponse> getPortfolios(String userId) {
         userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("존재하지 않는 정보"));
 
-        List<Portfolio> portfolios = portfolioRepository.findByUserId(userId);
+        List<Portfolio> portfolios = portfolioRepository.findByUserIdWithEtf(userId);
         double totalMoney = portfolios.stream().mapToDouble(p -> {
-            ETF etf = etfRepository.findBySymbol(p.getSymbol()).get();
+            ETF etf = p.getEtf();
             if (etf.getCountry() == CountryEnum.USA) {
                 return p.getCount() * etf.getCurrentPrice() * 1395;
             } else {
@@ -86,10 +90,10 @@ public class PortfolioService {
 
         return portfolios.stream().map(p -> {
             PortfolioController.PortfolioResponse response = new PortfolioController.PortfolioResponse();
-            ETF etf = etfRepository.findBySymbol(p.getSymbol()).get();
+            ETF etf = p.getEtf();
             if(etf.getCountry() == CountryEnum.USA){
                 response.setMoney(p.getCount() * etf.getCurrentPrice() * 1395);
-            } else { 
+            } else {
                 response.setMoney(p.getCount() * etf.getCurrentPrice());
             }
 
