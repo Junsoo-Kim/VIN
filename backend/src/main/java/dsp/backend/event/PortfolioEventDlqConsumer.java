@@ -12,12 +12,6 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
-/**
- * 재시도(지수 백오프)까지 모두 실패한 포트폴리오 이벤트를 받는 DLT(Dead Letter Topic) 컨슈머.
- *
- * 이미 커밋된 매수/매도 자체를 되돌리는 대신, "재처리가 필요하다"는 사실을
- * portfolio_sync_failures 테이블에 명시적으로 남긴다 — 이것이 이 시스템의 보상 트랜잭션이다.
- */
 @Component
 public class PortfolioEventDlqConsumer {
 

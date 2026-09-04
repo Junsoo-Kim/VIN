@@ -8,11 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-/**
- * 포트폴리오 변경 이벤트를 받아 이력을 적재한다.
- * 여기서 예외가 발생하면 KafkaConfig의 DefaultErrorHandler가 지수 백오프로 재시도하고,
- * 그래도 실패하면 "portfolio-events.DLT"로 보낸다 (PortfolioEventDlqConsumer 참고).
- */
 @Component
 public class PortfolioEventConsumer {
 

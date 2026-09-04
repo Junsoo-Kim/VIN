@@ -7,10 +7,6 @@ import dsp.backend.utils.PortfolioChangeType;
 import java.io.Serializable;
 import java.time.Instant;
 
-/**
- * 포트폴리오 매수/매도가 DB에 커밋된 "이후" 발행되는 이벤트.
- * Kafka를 통해 이력 적재 등 부가 처리를 매수/매도 요청의 임계 경로(critical path)에서 분리한다.
- */
 public class PortfolioChangedEvent implements Serializable {
 
     private String userId;

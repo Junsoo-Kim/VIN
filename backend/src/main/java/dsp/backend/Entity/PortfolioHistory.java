@@ -5,10 +5,6 @@ import jakarta.persistence.*;
 
 import java.time.Instant;
 
-/**
- * 포트폴리오 매수/매도 이력. PortfolioService의 트랜잭션과는 별개로,
- * Kafka Consumer가 비동기로 적재한다(critical path와 분리).
- */
 @Entity
 @Table(name = "portfolio_history")
 public class PortfolioHistory {
