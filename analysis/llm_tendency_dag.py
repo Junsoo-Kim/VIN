@@ -9,10 +9,12 @@ import logging
 def llm_tendency_dag(**kwargs):
     responses = kwargs['dag_run'].conf.get('responses')
     api_key = kwargs['dag_run'].conf.get('api_key')
-    
+    api_base_url = kwargs['dag_run'].conf.get('api_base_url')
+
     # 로그에 responses와 api_key 출력
     logging.info(f"Responses: {responses}")
     logging.info(f"API Key: {api_key}")
+    logging.info(f"API Base URL: {api_base_url}")
     
     # 템플릿 정의
     templates = """
@@ -77,8 +79,9 @@ def llm_tendency_dag(**kwargs):
     )
 
     # ChatGPT API 호출
-    chat_model = ChatOpenAI(openai_api_key=api_key, 
-                            max_tokens=2048, 
+    chat_model = ChatOpenAI(openai_api_key=api_key,
+                            openai_api_base=api_base_url,
+                            max_tokens=2048,
                             model_name='gpt-4o-mini',
                             temperature=0.1)
     response = chat_model.predict(formatted_prompt)
@@ -119,6 +122,7 @@ with DAG(
         do_xcom_push=True,  # XCom으로 결과를 푸시
         op_kwargs={
             'responses': "{{ dag_run.conf['responses'] }}",
-            'api_key': "{{ dag_run.conf['api_key'] }}"
+            'api_key': "{{ dag_run.conf['api_key'] }}",
+            'api_base_url': "{{ dag_run.conf['api_base_url'] }}"
         }
     )

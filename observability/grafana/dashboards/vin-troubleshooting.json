@@ -5,9 +5,9 @@
   "tags": ["vin"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 3,
   "refresh": "5s",
-  "time": { "from": "now-15m", "to": "now" },
+  "time": { "from": "now-5m", "to": "now" },
   "panels": [
     {
       "id": 1,
@@ -43,7 +43,7 @@
       "id": 3,
       "type": "timeseries",
       "title": "분산 락 대기시간 (p50/p95/p99)",
-      "gridPos": { "x": 0, "y": 8, "w": 16, "h": 8 },
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
       "targets": [
@@ -65,38 +65,10 @@
       ]
     },
     {
-      "id": 4,
-      "type": "stat",
-      "title": "락 획득 실패 누적",
-      "gridPos": { "x": 16, "y": 8, "w": 8, "h": 8 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": { "mode": "thresholds" },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 1 }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "expr": "distributed_lock_rejected_total or vector(0)",
-          "refId": "A",
-          "instant": true
-        }
-      ]
-    },
-    {
       "id": 5,
       "type": "timeseries",
       "title": "HikariCP 커넥션 (active / idle)",
-      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
       "targets": [
@@ -109,21 +81,6 @@
           "expr": "hikaricp_connections_idle",
           "legendFormat": "idle",
           "refId": "B"
-        }
-      ]
-    },
-    {
-      "id": 6,
-      "type": "timeseries",
-      "title": "Kafka 컨슈머 랙 (max)",
-      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "targets": [
-        {
-          "expr": "kafka_consumer_fetch_manager_records_lag_max",
-          "legendFormat": "{{client_id}}",
-          "refId": "A"
         }
       ]
     }

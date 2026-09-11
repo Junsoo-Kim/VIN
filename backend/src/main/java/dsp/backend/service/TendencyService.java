@@ -42,6 +42,9 @@ public class TendencyService {
     @Value("${api.key}")
     private String apiKey;
 
+    @Value("${api.base-url}")
+    private String apiBaseUrl;
+
     public void saveTendency(List<String> answers, List<String> reasons, String userId) {
         // User를 찾아 tendencyIndex를 확인합니다.
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
@@ -111,6 +114,7 @@ public class TendencyService {
         responses.put("question6", Map.of("answer", tendency.getAnswer6(), "reason", tendency.getReason6()));
         conf.put("responses", responses);
         conf.put("api_key", apiKey); // 환경변수에서 읽어온 API 키 사용
+        conf.put("api_base_url", apiBaseUrl); // GMS 프록시 등 커스텀 OpenAI 엔드포인트 사용
         requestBody.put("conf", conf);
         HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(requestBody, headers);
         ResponseEntity<Map> response;

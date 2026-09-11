@@ -2,7 +2,7 @@ from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 
 # ChatGPT API 호출을 위한 함수 정의
-def evaluate_investment_trait(responses, api_key, user_id):
+def evaluate_investment_trait(responses, api_key, user_id, api_base_url=None):
     # 템플릿 정의
     templates = """
     아래 설문조사를 통해 당신의 위험 감수 성향을 평가하겠습니다. 각 문항은 -50에서 50까지의 점수로 평가되며, 점수가 높을수록 공격적, 낮을수록 보수적인 성향을 나타냅니다.
@@ -66,8 +66,9 @@ def evaluate_investment_trait(responses, api_key, user_id):
     )
 
     # ChatGPT API 호출
-    chat_model = ChatOpenAI(openai_api_key=api_key, 
-                            max_tokens=2048, 
+    chat_model = ChatOpenAI(openai_api_key=api_key,
+                            openai_api_base=api_base_url,
+                            max_tokens=2048,
                             model_name='gpt-4o-mini',
                             temperature=0.2)
     response = chat_model.predict(formatted_prompt)
