@@ -28,15 +28,17 @@ def customized_recommend_stocks(**kwargs):
     etf_mid = etf_list[len(corr_values) // 2]
     etf_min = etf_list[corr_values.argmin()] # argmax()는 corr_values에서 값이 가장 작은 인덱스 값을 반환한다.
     
-    # 고정으로 추천할 ETF를 리스트에서 제거한다.
-    etf_list = [etf for etf in etf_list if etf not in (etf_max, etf_mid, etf_min)]
-
     # 고정으로 추천할 ETF를 튜플로 리스트에 저장한다.
     fixed_recommendations = {
         "보수적 성향 (리스크 헷징 효과가 큰 종목)": [etf_min, corr_values[corr_values.argmin()]],
         "공격적 성향 (리스크 헷징 효과가 약한 종목)": [etf_max, corr_values[corr_values.argmax()]],
         "중립적 성향 (중립적인 투자에 적합한 종목)": [etf_mid, corr_values[len(corr_values) // 2]]
     }
+
+    # 고정으로 추천할 ETF를 리스트에서 제거한다.
+    remaining = correlation_data_sorted.drop(index=[etf_max, etf_mid, etf_min], errors='ignore')
+    etf_list = remaining.index.values
+    corr_values = remaining['Correlation'].values
 
     # user의 투자 성향을 기반으로 추천할 ETF 2개
     score_range = 200
