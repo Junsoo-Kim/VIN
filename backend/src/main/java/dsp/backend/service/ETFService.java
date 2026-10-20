@@ -152,7 +152,7 @@ public class ETFService {
             ETF etf = etfOptional.get();
             symbol = etf.getSymbol();
             if (etf.getCountry() == CountryEnum.KOREA) {
-                return NaverFinanceUtils.getAllNaverPrice(dataDir, symbol);
+                return NaverFinanceUtils.getAllNaverPrice(dataDir, etf.getLongName());
             } 
             else if(etf.getCountry() == CountryEnum.USA) {
                 return toKrw(etf.getCountry(), YahooFinanceUtils.getAllYahooPrice(dataDir, symbol));
@@ -250,7 +250,7 @@ public class ETFService {
 
             List<Map<String, String>> priceData;
             if (etf.getCountry() == CountryEnum.KOREA) {
-                priceData = NaverFinanceUtils.getAllNaverPrice(dataDir, etf.getSymbol());
+                priceData = NaverFinanceUtils.getAllNaverPrice(dataDir, etf.getLongName());
                 etfDetail.put("chartPrice", priceData.stream()
                     .skip(Math.max(0, priceData.size() - 36))
                     .map(data -> data.get("price"))
@@ -287,7 +287,7 @@ public class ETFService {
 
             List<Map<String, String>> priceData;
             if (etf.getCountry() == CountryEnum.KOREA) {
-                priceData = NaverFinanceUtils.getAllNaverPrice(dataDir, etf.getSymbol());
+                priceData = NaverFinanceUtils.getAllNaverPrice(dataDir, etf.getLongName());
                 etfDetail.put("chartPrice", priceData.stream()
                     .skip(Math.max(0, priceData.size() - 36))
                     .map(data -> data.get("price"))

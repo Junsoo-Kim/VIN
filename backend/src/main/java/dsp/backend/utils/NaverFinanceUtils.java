@@ -99,9 +99,7 @@ public class NaverFinanceUtils {
         return etfInfo;
     }
 
-    public static List<Map<String, String>> getAllNaverPrice(Path dataDir, String symbol) throws IOException {
-        Map<String, Object> etfInfo = getETFInfo(symbol);
-        String longName = (String) etfInfo.get("longName");
+    public static List<Map<String, String>> getAllNaverPrice(Path dataDir, String longName) throws IOException {
         boolean isFirstLine = true;
 
         List<Map<String, String>> priceData = new ArrayList<>();
