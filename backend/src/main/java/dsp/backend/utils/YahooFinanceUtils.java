@@ -1,10 +1,9 @@
 package dsp.backend.utils;
 
 import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -19,10 +18,10 @@ import dsp.backend.service.ETFService;
 public class YahooFinanceUtils {
     private static final Logger logger = LoggerFactory.getLogger(ETFService.class);
 
-    public static List<ETF> getDetailsFromCsv(String filePath) {
+    public static List<ETF> getDetailsFromCsv(Path filePath) {
         List<ETF> etfList = new ArrayList<>();
         CountryEnum country = CountryEnum.USA;
-        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+        try (BufferedReader br = Files.newBufferedReader(filePath)) {
             String line;
             boolean isFirstLine = true;
             while ((line = br.readLine()) != null) {
@@ -55,15 +54,15 @@ public class YahooFinanceUtils {
         return etfList;
     }
 
-    public static List<Map<String, String>> getAllYahooPrice(String symbol) throws IOException {
+    public static List<Map<String, String>> getAllYahooPrice(Path dataDir, String symbol) throws IOException {
         boolean isFirstLine = true;
 
         List<Map<String, String>> priceData = new ArrayList<>();
-        String filePath = "src\\main\\data\\ETF_USA\\" + symbol + ".csv";
+        Path filePath = dataDir.resolve("ETF_USA").resolve(symbol + ".csv");
         logger.info("Reading price data from file1: {}", filePath);
         
         try {
-            List<String> lines = Files.readAllLines(Paths.get(filePath));
+            List<String> lines = Files.readAllLines(filePath);
             logger.info("Reading price data from file2: {}", filePath);
 
             for (String line : lines) {

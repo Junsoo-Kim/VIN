@@ -6,6 +6,7 @@ import dsp.backend.utils.NaverFinanceUtils;
 import dsp.backend.utils.PriceConverter;
 import dsp.backend.utils.YahooFinanceUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import dsp.backend.repository.ETFRepository;
@@ -19,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.io.IOException;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -52,6 +54,9 @@ public class ETFService {
 
     @Autowired
     private PriceConverter priceConverter;
+
+    @Value("${vin.data-dir:src/main/data}")
+    private Path dataDir;
 
     private List<Map<String, String>> toKrw(CountryEnum country, List<Map<String, String>> priceData) {
         return priceData.stream().map(data -> {
@@ -147,10 +152,10 @@ public class ETFService {
             ETF etf = etfOptional.get();
             symbol = etf.getSymbol();
             if (etf.getCountry() == CountryEnum.KOREA) {
-                return NaverFinanceUtils.getAllNaverPrice(symbol);
+                return NaverFinanceUtils.getAllNaverPrice(dataDir, symbol);
             } 
             else if(etf.getCountry() == CountryEnum.USA) {
-                return toKrw(etf.getCountry(), YahooFinanceUtils.getAllYahooPrice(symbol));
+                return toKrw(etf.getCountry(), YahooFinanceUtils.getAllYahooPrice(dataDir, symbol));
             } else {
                 logger.error("Country not supported: {}", etf.getCountry());
                 return List.of();
@@ -164,7 +169,7 @@ public class ETFService {
     // 첫 수행 시 DB에 저장된 ETF 정보가 �����는 경우에만 주석 풀고 수행
     // @PostConstruct
     public void saveYahooETFs() {
-        List<ETF> etfList = YahooFinanceUtils.getDetailsFromCsv("src\\main\\data\\usa_etfs_info.csv");
+        List<ETF> etfList = YahooFinanceUtils.getDetailsFromCsv(dataDir.resolve("usa_etfs_info.csv"));
         for (ETF etf : etfList) {
             if (!etfRepository.existsBySymbol(etf.getSymbol())) {
                 etfRepository.save(etf);
@@ -182,7 +187,7 @@ public class ETFService {
 
         try {
             // 1. 디렉토리 확인
-            File folderKOR = new File("src\\main\\data\\ETF_KOR");
+            File folderKOR = dataDir.resolve("ETF_KOR").toFile();
             if (!folderKOR.exists() || !folderKOR.isDirectory()) {
                 logger.error("Directory does not exist or is not a directory: {}", folderKOR.getAbsolutePath());
                 return;
@@ -245,13 +250,13 @@ public class ETFService {
 
             List<Map<String, String>> priceData;
             if (etf.getCountry() == CountryEnum.KOREA) {
-                priceData = NaverFinanceUtils.getAllNaverPrice(etf.getSymbol());
+                priceData = NaverFinanceUtils.getAllNaverPrice(dataDir, etf.getSymbol());
                 etfDetail.put("chartPrice", priceData.stream()
                     .skip(Math.max(0, priceData.size() - 36))
                     .map(data -> data.get("price"))
                     .collect(Collectors.toList()));
             } else if (etf.getCountry() == CountryEnum.USA) {
-                priceData = toKrw(etf.getCountry(), YahooFinanceUtils.getAllYahooPrice(etf.getSymbol()));
+                priceData = toKrw(etf.getCountry(), YahooFinanceUtils.getAllYahooPrice(dataDir, etf.getSymbol()));
                 etfDetail.put("chartPrice", priceData.stream()
                     .skip(Math.max(0, priceData.size() - 11))
                     .map(data -> data.get("price"))
@@ -282,13 +287,13 @@ public class ETFService {
 
             List<Map<String, String>> priceData;
             if (etf.getCountry() == CountryEnum.KOREA) {
-                priceData = NaverFinanceUtils.getAllNaverPrice(etf.getSymbol());
+                priceData = NaverFinanceUtils.getAllNaverPrice(dataDir, etf.getSymbol());
                 etfDetail.put("chartPrice", priceData.stream()
                     .skip(Math.max(0, priceData.size() - 36))
                     .map(data -> data.get("price"))
                     .collect(Collectors.toList()));
             } else if (etf.getCountry() == CountryEnum.USA) {
-                priceData = toKrw(etf.getCountry(), YahooFinanceUtils.getAllYahooPrice(etf.getSymbol()));
+                priceData = toKrw(etf.getCountry(), YahooFinanceUtils.getAllYahooPrice(dataDir, etf.getSymbol()));
                 etfDetail.put("chartPrice", priceData.stream()
                     .skip(Math.max(0, priceData.size() - 11))
                     .map(data -> data.get("price"))
