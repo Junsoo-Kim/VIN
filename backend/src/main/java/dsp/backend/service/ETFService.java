@@ -3,6 +3,7 @@ package dsp.backend.service;
 import dsp.backend.airflow.AirflowClient;
 import dsp.backend.utils.CountryEnum;
 import dsp.backend.utils.NaverFinanceUtils;
+import dsp.backend.utils.PriceConverter;
 import dsp.backend.utils.YahooFinanceUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -49,6 +50,17 @@ public class ETFService {
     @Autowired
     private AirflowClient airflowClient;
 
+    @Autowired
+    private PriceConverter priceConverter;
+
+    private List<Map<String, String>> toKrw(CountryEnum country, List<Map<String, String>> priceData) {
+        return priceData.stream().map(data -> {
+            Map<String, String> converted = new HashMap<>(data);
+            converted.put("price", String.valueOf(priceConverter.toKrw(country, Double.parseDouble(data.get("price")))));
+            return converted;
+        }).collect(Collectors.toList());
+    }
+
     public Optional<Map<String, Object>> getETFInfo(String symbol) {
         logger.info("Fetching ETF info for symbol: {}", symbol);
         try {
@@ -67,16 +79,11 @@ public class ETFService {
             Map<String, Object> etfInfo = new HashMap<>();
             etfInfo.put("symbol", etf.getSymbol());
             etfInfo.put("longName", etf.getLongName());
-            double currentPrice = etf.getCurrentPrice();
-            double week52High = etf.getWeek52High();
-            double week52Low = etf.getWeek52Low();
-            double navPrice = etf.getNavPrice();
-            if (etf.getCountry() == CountryEnum.USA) {
-                currentPrice *= 1395;
-                week52High = Math.round(week52High * 1395);
-                week52Low = Math.round(week52Low * 1395);
-                navPrice = Math.round(navPrice * 1395);
-            }
+            CountryEnum country = etf.getCountry();
+            double currentPrice = priceConverter.toKrw(country, etf.getCurrentPrice());
+            double week52High = Math.round(priceConverter.toKrw(country, etf.getWeek52High()));
+            double week52Low = Math.round(priceConverter.toKrw(country, etf.getWeek52Low()));
+            double navPrice = Math.round(priceConverter.toKrw(country, etf.getNavPrice()));
             etfInfo.put("currentPrice", currentPrice);
             etfInfo.put("week52High", week52High);
             etfInfo.put("week52Low", week52Low);
@@ -143,7 +150,7 @@ public class ETFService {
                 return NaverFinanceUtils.getAllNaverPrice(symbol);
             } 
             else if(etf.getCountry() == CountryEnum.USA) {
-                return YahooFinanceUtils.getAllYahooPrice(symbol);
+                return toKrw(etf.getCountry(), YahooFinanceUtils.getAllYahooPrice(symbol));
             } else {
                 logger.error("Country not supported: {}", etf.getCountry());
                 return List.of();
@@ -232,7 +239,7 @@ public class ETFService {
             Map<String, Object> etfDetail = new HashMap<>();
             etfDetail.put("symbol", etf.getSymbol());
             etfDetail.put("etfName", etf.getLongName());
-            etfDetail.put("etfPrice", etf.getCurrentPrice());
+            etfDetail.put("etfPrice", (double) Math.round(priceConverter.toKrw(etf.getCountry(), etf.getCurrentPrice())));
             etfDetail.put("Country", etf.getCountry().name());
             etfDetail.put("fundmanager", etf.getFundManager());
 
@@ -244,7 +251,7 @@ public class ETFService {
                     .map(data -> data.get("price"))
                     .collect(Collectors.toList()));
             } else if (etf.getCountry() == CountryEnum.USA) {
-                priceData = YahooFinanceUtils.getAllYahooPrice(etf.getSymbol());
+                priceData = toKrw(etf.getCountry(), YahooFinanceUtils.getAllYahooPrice(etf.getSymbol()));
                 etfDetail.put("chartPrice", priceData.stream()
                     .skip(Math.max(0, priceData.size() - 11))
                     .map(data -> data.get("price"))
@@ -269,11 +276,7 @@ public class ETFService {
             Map<String, Object> etfDetail = new HashMap<>();
             etfDetail.put("symbol", etf.getSymbol());
             etfDetail.put("etfName", etf.getLongName());
-            double etfPrice = etf.getCurrentPrice();
-            if (etf.getCountry() == CountryEnum.USA) {
-                etfPrice = Math.round(etfPrice * 1395);
-            }
-            etfDetail.put("etfPrice", etfPrice);
+            etfDetail.put("etfPrice", (double) Math.round(priceConverter.toKrw(etf.getCountry(), etf.getCurrentPrice())));
             etfDetail.put("Country", etf.getCountry().name());
             etfDetail.put("fundmanager", etf.getFundManager());
 
@@ -285,7 +288,7 @@ public class ETFService {
                     .map(data -> data.get("price"))
                     .collect(Collectors.toList()));
             } else if (etf.getCountry() == CountryEnum.USA) {
-                priceData = YahooFinanceUtils.getAllYahooPrice(etf.getSymbol());
+                priceData = toKrw(etf.getCountry(), YahooFinanceUtils.getAllYahooPrice(etf.getSymbol()));
                 etfDetail.put("chartPrice", priceData.stream()
                     .skip(Math.max(0, priceData.size() - 11))
                     .map(data -> data.get("price"))
@@ -306,7 +309,7 @@ public class ETFService {
                        etfDetails.put("symbol", etf.getSymbol());
                        etfDetails.put("longName", etf.getLongName());
                        etfDetails.put("country", etf.getCountry().name());
-                       etfDetails.put("currentPrice", etf.getCurrentPrice());
+                       etfDetails.put("currentPrice", priceConverter.toKrw(etf.getCountry(), etf.getCurrentPrice()));
                        return etfDetails;
                    })
                    .collect(Collectors.toList());

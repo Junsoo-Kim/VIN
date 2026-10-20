@@ -41,8 +41,7 @@ const ETFListPage = () => {
     const handleSearch = () => {
         const filteredData = etfData.filter((etf) => {
             const matchesSearchTerm = etf.longName.toLowerCase().includes(searchTerm.toLowerCase());
-            const etfPrice = etf.country === 'USA' ? etf.currentPrice * 1395 : etf.currentPrice;
-            const withinPriceRange = etfPrice >= priceRange[0] && etfPrice <= priceRange[1];
+            const withinPriceRange = etf.currentPrice >= priceRange[0] && etf.currentPrice <= priceRange[1];
             const matchesCountry = countries[etf.country];
             return matchesSearchTerm && withinPriceRange && matchesCountry;
         });

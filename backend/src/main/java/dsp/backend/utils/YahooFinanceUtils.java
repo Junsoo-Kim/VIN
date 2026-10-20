@@ -76,7 +76,7 @@ public class YahooFinanceUtils {
                 if (parts.length == 2) {
                     Map<String, String> data = new HashMap<>();
                     data.put("date", parts[0]);
-                    data.put("price", String.valueOf((Double.valueOf(parts[1])) * 1395));
+                    data.put("price", parts[1]);
                     priceData.add(data);
                 }
             }
