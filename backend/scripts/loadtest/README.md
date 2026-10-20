@@ -4,13 +4,15 @@
 
 ## 사전 준비
 - 백엔드 서버가 `localhost:8080`에서 기동 중이어야 합니다.
-- `BASE_URL`, `USER_ID`, `ETF_CODE`는 실제 DB에 존재하는 값으로 맞춰야 합니다.
+- `BASE_URL`, `USER_ID`, `PASSWORD`, `ETF_CODE`는 실제 DB에 존재하는 값으로 맞춰야 합니다.
+- `POST /portfolio`는 로그인 세션이 필요하므로, 스크립트가 `setup()`에서 `/user/signin`으로 로그인한 뒤 `VIN_SESSION` 쿠키로 요청합니다.
 
 ## 실행 방법
 ```bash
 docker run --rm -i \
   -e BASE_URL=http://host.docker.internal:8080 \
   -e USER_ID=testuser \
+  -e PASSWORD=testpassword \
   -e ETF_CODE=069500 \
   grafana/k6 run - < concurrent-buy.js
 ```

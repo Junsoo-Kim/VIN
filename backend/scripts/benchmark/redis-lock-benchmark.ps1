@@ -10,6 +10,7 @@ $BackendDir = Join-Path $RepoRoot "backend"
 $NoLockDir  = Join-Path (Split-Path $RepoRoot -Parent) "VIN-nolock-bench"
 
 $BenchUser = "lbench_user"
+$env:VIN_AUTH_ENABLED = "false"
 
 function Invoke-Sql {
     param([string]$Sql)

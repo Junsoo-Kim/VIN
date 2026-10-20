@@ -116,7 +116,7 @@ kill_by_port "$BEFORE_PORT"
 BEFORE_LOG="$BEFORE_DIR/backend/bench.log"
 (
   cd "$BEFORE_DIR/backend"
-  OPENAI_API_KEY=dummy-for-benchmark ./mvnw.cmd -q spring-boot:run -Dspring-boot.run.arguments=--server.port=$BEFORE_PORT > "$BEFORE_LOG" 2>&1 &
+  VIN_AUTH_ENABLED=false OPENAI_API_KEY=dummy-for-benchmark ./mvnw.cmd -q spring-boot:run -Dspring-boot.run.arguments=--server.port=$BEFORE_PORT > "$BEFORE_LOG" 2>&1 &
 )
 sleep 3
 wait_for_start "$BEFORE_LOG"
@@ -143,7 +143,7 @@ kill_by_port "$AFTER_PORT"
 AFTER_LOG="$REPO_ROOT/backend/bench.log"
 (
   cd "$REPO_ROOT/backend"
-  OPENAI_API_KEY=dummy-for-benchmark ./mvnw.cmd -q spring-boot:run -Dspring-boot.run.arguments=--server.port=$AFTER_PORT > "$AFTER_LOG" 2>&1 &
+  VIN_AUTH_ENABLED=false OPENAI_API_KEY=dummy-for-benchmark ./mvnw.cmd -q spring-boot:run -Dspring-boot.run.arguments=--server.port=$AFTER_PORT > "$AFTER_LOG" 2>&1 &
 )
 sleep 3
 wait_for_start "$AFTER_LOG"

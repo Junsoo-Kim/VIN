@@ -1,11 +1,13 @@
 package dsp.backend.controller;
 
 import dsp.backend.aop.LockAcquisitionException;
+import dsp.backend.auth.AuthContext;
 import dsp.backend.service.PortfolioLockFacade;
 import dsp.backend.service.PortfolioService;
 import dsp.backend.service.ResourceNotFoundException;
 import dsp.backend.utils.CountryEnum;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,7 +25,8 @@ public class PortfolioController {
     private PortfolioLockFacade portfolioLockFacade;
 
     @PostMapping
-    public ResponseEntity<String> addPortfolio(@RequestBody PortfolioRequest request) {
+    public ResponseEntity<String> addPortfolio(@RequestBody PortfolioRequest request, HttpServletRequest httpRequest) {
+        AuthContext.requireUser(httpRequest, request.getUserId());
         try {
             portfolioLockFacade.addPortfolio(request.getUserId(), request.getEtfCode(), request.getCount());
             return ResponseEntity.noContent().build();
@@ -37,7 +40,8 @@ public class PortfolioController {
     }
 
     @DeleteMapping
-    public ResponseEntity<String> deletePortfolio(@RequestBody PortfolioRequest request) {
+    public ResponseEntity<String> deletePortfolio(@RequestBody PortfolioRequest request, HttpServletRequest httpRequest) {
+        AuthContext.requireUser(httpRequest, request.getUserId());
         try {
             portfolioLockFacade.deletePortfolio(request.getUserId(), request.getEtfCode());
             return ResponseEntity.noContent().build();
@@ -49,7 +53,8 @@ public class PortfolioController {
     }
 
     @GetMapping("/{userId}")
-    public ResponseEntity<List<PortfolioResponse>> getPortfolios(@PathVariable String userId) {
+    public ResponseEntity<List<PortfolioResponse>> getPortfolios(@PathVariable String userId, HttpServletRequest httpRequest) {
+        AuthContext.requireUser(httpRequest, userId);
         try {
             List<PortfolioResponse> portfolios = portfolioService.getPortfolios(userId);
             return ResponseEntity.ok(portfolios);

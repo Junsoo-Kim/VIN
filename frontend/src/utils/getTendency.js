@@ -4,7 +4,7 @@ export const getTendency = async () => {
     const GET_TENDENCY_URL = `http://localhost:8080/tendency/${getCookie('userId')}`;
 
     try {
-        const response = await fetch(GET_TENDENCY_URL);
+        const response = await fetch(GET_TENDENCY_URL, { credentials: 'include' });
         if (!response.ok) {
             if (response.status === 404) {
                 throw new Error('Tendency not found');

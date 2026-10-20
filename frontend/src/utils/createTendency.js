@@ -12,6 +12,7 @@ export const createTendency = async (answers, reasons) => {
     try {
         const response = await fetch(CREATE_TENDENCY_URL, {
             method: 'POST',
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
             },

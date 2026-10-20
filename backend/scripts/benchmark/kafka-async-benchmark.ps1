@@ -11,6 +11,7 @@ $BackendDir = Resolve-Path (Join-Path $ScriptDir "..\..")
 $LogFile    = Join-Path $BackendDir "kafka-bench-app.log"
 
 $BenchUser  = "kbench_user"
+$env:VIN_AUTH_ENABLED = "false"
 $EtfPrefix  = "KBENCH"
 
 function Invoke-Sql {

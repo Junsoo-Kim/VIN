@@ -6,6 +6,7 @@ import { check } from "k6";
 const BASE_URL = __ENV.BASE_URL || "http://localhost:8080";
 const USER_ID = __ENV.USER_ID || "testuser";
 const ETF_CODE = __ENV.ETF_CODE || "069500";
+const PASSWORD = __ENV.PASSWORD || "testpassword";
 
 export const options = {
   scenarios: {
@@ -18,7 +19,18 @@ export const options = {
   },
 };
 
-export default function () {
+export function setup() {
+  const res = http.post(
+    `${BASE_URL}/user/signin`,
+    JSON.stringify({ userId: USER_ID, password: PASSWORD, currentCookie: "" }),
+    { headers: { "Content-Type": "application/json" } },
+  );
+  check(res, { "signin status is 201": (r) => r.status === 201 });
+  const session = res.cookies.VIN_SESSION;
+  return { session: session && session.length > 0 ? session[0].value : "" };
+}
+
+export default function (data) {
   const payload = JSON.stringify({
     userId: USER_ID,
     etfCode: ETF_CODE,
@@ -26,7 +38,7 @@ export default function () {
   });
 
   const res = http.post(`${BASE_URL}/portfolio`, payload, {
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Cookie: `VIN_SESSION=${data.session}` },
   });
 
   check(res, { "status is 204": (r) => r.status === 204 });

@@ -13,6 +13,7 @@ export const deletePortfolio = async (etfCode) => {
     try {
         const response = await fetch(DELETE_PORTFOLIO_URL, {
             method: 'DELETE',
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
             },

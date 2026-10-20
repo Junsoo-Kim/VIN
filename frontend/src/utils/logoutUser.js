@@ -10,6 +10,7 @@ export const logoutUser = async () => {
     try {
         const response = await fetch(LOGOUT_URL, {
             method: 'POST',
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
             },

@@ -28,7 +28,7 @@ const Signin = () => {
                 }
             } else {
                 const responseJson = await response.json();
-                document.cookie = `userId=${responseJson.userId}; path=/;`;
+                document.cookie = `userId=${responseJson.userId}; path=/; max-age=7200;`;
 
                 const etfListResponse = await getEtfList();
                 const etfList = etfListResponse.data;
