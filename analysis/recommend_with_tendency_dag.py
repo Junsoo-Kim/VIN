@@ -41,36 +41,23 @@ def customized_recommend_stocks(**kwargs):
     corr_values = remaining['Correlation'].values
 
     # user의 투자 성향을 기반으로 추천할 ETF 2개
-    score_range = 200
-    ratio = final_score / score_range
-
+    ratio = final_score / 100
+    last_index = len(corr_values) - 1
     mid_index = len(corr_values) // 2
 
-    if final_score > 40:  # 공격적 투자자
-        index = mid_index - int(ratio * mid_index)
-        index = max(0, index)
-    elif -40 <= final_score <= 40:  # 중립적 투자자
-        dynamic_recommendations = {
-            "사용자 성향 추천 1": [etf_list[mid_index - 1], corr_values[mid_index - 1]],
-            "사용자 성향 추천 2": [etf_list[mid_index + 1], corr_values[mid_index + 1]]
-        }
-    else:  # 보수적 투자자
-        index = mid_index + int(abs(ratio) * mid_index)
-        index = min(len(corr_values) - 1, index)
+    if final_score > 20:  # 공격적 투자자
+        index = mid_index + int(ratio * (last_index - mid_index))
+        picks = [index, max(index - 1, 0)]
+    elif final_score < -20:  # 보수적 투자자
+        index = mid_index - int(abs(ratio) * mid_index)
+        picks = [index, min(index + 1, last_index)]
+    else:  # 중립적 투자자
+        picks = [max(mid_index - 1, 0), min(mid_index + 1, last_index)]
+    picks = list(dict.fromkeys(picks))
 
-    if not (-40 <= final_score <= 40):  # 공격적 또는 보수적
-        etf_dynamic_2_index = index - 1 if index > 0 else index + 1
-        etf_dynamic_2 = etf_list[etf_dynamic_2_index]
-    
-        if etf_list[index] == etf_dynamic_2:
-            dynamic_recommendations = {
-                "사용자 성향 추천 1": [etf_list[index], corr_values[index]]
-            }
-        else:
-            dynamic_recommendations = {
-                "사용자 성향 추천 1": [etf_list[index], corr_values[index]],
-                "사용자 성향 추천 2": [etf_dynamic_2, corr_values[etf_dynamic_2_index]]
-            }
+    dynamic_recommendations = {
+        f"사용자 성향 추천 {n}": [etf_list[i], corr_values[i]] for n, i in enumerate(picks, start=1)
+    }
 
     # 최종적으로 추천할 ETF 리스트를 return
     result = {**fixed_recommendations, **dynamic_recommendations}
