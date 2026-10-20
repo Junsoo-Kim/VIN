@@ -1,9 +1,14 @@
 package dsp.backend.controller;
 
 import dsp.backend.Entity.User;
+import dsp.backend.auth.AuthInterceptor;
+import dsp.backend.auth.SessionService;
 import dsp.backend.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +20,9 @@ import java.util.Map;
 public class UserController {
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private SessionService sessionService;
 
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody User user) {
@@ -28,13 +36,28 @@ public class UserController {
         String password = loginRequest.get("password");
         String currentCookie = loginRequest.get("currentCookie");
         User user = userService.loginUser(userId, password, currentCookie);
-        return new ResponseEntity<>(Collections.singletonMap("userId", user.getUserId()), HttpStatus.CREATED);
+        String token = sessionService.create(user.getUserId());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .header(HttpHeaders.SET_COOKIE, sessionCookie(token, sessionService.getTtl().getSeconds()).toString())
+                .body(Collections.singletonMap("userId", user.getUserId()));
     }
 
     @PostMapping("/signout")
-    public ResponseEntity<?> signout(@RequestBody Map<String, String> logoutRequest) {
+    public ResponseEntity<?> signout(@RequestBody Map<String, String> logoutRequest, HttpServletRequest request) {
         String currentCookie = logoutRequest.get("currentCookie");
         userService.logoutUser(currentCookie);
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        sessionService.invalidate(AuthInterceptor.readToken(request));
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, sessionCookie("", 0).toString())
+                .build();
+    }
+
+    private ResponseCookie sessionCookie(String value, long maxAgeSeconds) {
+        return ResponseCookie.from(SessionService.COOKIE_NAME, value)
+                .httpOnly(true)
+                .sameSite("Lax")
+                .path("/")
+                .maxAge(maxAgeSeconds)
+                .build();
     }
 }

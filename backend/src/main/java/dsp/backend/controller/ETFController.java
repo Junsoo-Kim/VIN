@@ -1,9 +1,11 @@
 package dsp.backend.controller;
 
+import dsp.backend.auth.AuthContext;
 import dsp.backend.service.ETFService;
 import dsp.backend.Entity.ETF;
 import dsp.backend.Entity.User;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,7 +52,7 @@ public class ETFController {
     @PostMapping("/simple")
     public ResponseEntity<List<Map<String, Object>>> getLowestPriceETFs(@RequestBody List<String> symbols) {
         try {
-            List<Map<String, Object>> etfDetails = etfService.getsimpleETFPrices(symbols);
+            List<Map<String, Object>> etfDetails = etfService.getETFDetails(symbols);
             return ResponseEntity.ok(etfDetails);
         } catch (Exception e) {
             return ResponseEntity.status(500).body(null);
@@ -79,12 +81,8 @@ public class ETFController {
 
     @GetMapping("/recommend/{symbol}/{userId}")
 
-    public ResponseEntity<Map<String, Object>> recommendETF(@PathVariable String symbol, @PathVariable String userId) {
-        try {
-            Map<String, Object> recommendation = etfService.recommendETF(symbol, userId);
-            return ResponseEntity.ok(recommendation);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(null);
-        }
+    public ResponseEntity<Map<String, Object>> recommendETF(@PathVariable String symbol, @PathVariable String userId, HttpServletRequest httpRequest) {
+        AuthContext.requireUser(httpRequest, userId);
+        return ResponseEntity.ok(etfService.recommendETF(symbol, userId));
     }
 }

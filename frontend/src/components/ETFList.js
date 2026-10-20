@@ -93,9 +93,7 @@ const ETFList = ({ filteredEtfData }) => {
                                         <div>
                                             <EtfContentTypography>
                                                 종가{' '}
-                                                {etf.Country === 'USA'
-                                                    ? formatAmount(Math.round(etf.etfPrice * 1395))
-                                                    : formatAmount(etf.etfPrice)}{' '}
+                                                {formatAmount(etf.etfPrice)}{' '}
                                                 원
                                             </EtfContentTypography>
                                             <EtfContentTypography>운용사 {etf.fundmanager}</EtfContentTypography>

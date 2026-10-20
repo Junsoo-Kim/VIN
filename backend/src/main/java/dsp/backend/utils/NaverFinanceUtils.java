@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -99,14 +99,12 @@ public class NaverFinanceUtils {
         return etfInfo;
     }
 
-    public static List<Map<String, String>> getAllNaverPrice(String symbol) throws IOException {
-        Map<String, Object> etfInfo = getETFInfo(symbol);
-        String longName = (String) etfInfo.get("longName");
+    public static List<Map<String, String>> getAllNaverPrice(Path dataDir, String longName) throws IOException {
         boolean isFirstLine = true;
 
         List<Map<String, String>> priceData = new ArrayList<>();
-        String filePath = "src\\main\\data\\ETF_KOR\\" + longName + ".csv";
-        List<String> lines = Files.readAllLines(Paths.get(filePath));
+        Path filePath = dataDir.resolve("ETF_KOR").resolve(longName + ".csv");
+        List<String> lines = Files.readAllLines(filePath);
         logger.info("Reading price data from file: {}", filePath);
     
         for (String line : lines) {
@@ -114,7 +112,6 @@ public class NaverFinanceUtils {
                 isFirstLine = false;
                 continue; // Skip header line
             }
-            logger.info("line: {}", line);
             String[] parts = line.split(",");
             if (parts.length == 4) {
                 String[] slicedParts = Arrays.copyOfRange(parts, 1, 3);

@@ -6,7 +6,7 @@ import dsp.backend.Entity.PortfolioId;
 import dsp.backend.controller.PortfolioController;
 import dsp.backend.repository.PortfolioRepository;
 import dsp.backend.repository.UserRepository;
-import dsp.backend.utils.CountryEnum;
+import dsp.backend.utils.PriceConverter;
 import dsp.backend.repository.ETFRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -30,6 +30,9 @@ public class PortfolioService {
     @Autowired
     private ETFRepository etfRepository;
 
+    @Autowired
+    private PriceConverter priceConverter;
+
     @Transactional
     public Portfolio addPortfolio(String userId, String etfCode, Integer count) {
         try {
@@ -44,7 +47,7 @@ public class PortfolioService {
             etfOptional = etfRepository.findBySymbol(etfCode);
             
         }
-        etfCode = etfOptional.get().getSymbol();
+        etfCode = etfOptional.orElseThrow(() -> new ResourceNotFoundException("존재하지 않는 정보")).getSymbol();
         userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("존재하지 않는 정보"));
         etfRepository.findBySymbol(etfCode).orElseThrow(() -> new ResourceNotFoundException("존재하지 않는 정보"));
 
@@ -79,23 +82,14 @@ public class PortfolioService {
         userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("존재하지 않는 정보"));
 
         List<Portfolio> portfolios = portfolioRepository.findByUserIdWithEtf(userId);
-        double totalMoney = portfolios.stream().mapToDouble(p -> {
-            ETF etf = p.getEtf();
-            if (etf.getCountry() == CountryEnum.USA) {
-                return p.getCount() * etf.getCurrentPrice() * 1395;
-            } else {
-                return p.getCount() * etf.getCurrentPrice();
-            }
-        }).sum();
+        double totalMoney = portfolios.stream()
+                .mapToDouble(p -> p.getCount() * priceConverter.toKrw(p.getEtf().getCountry(), p.getEtf().getCurrentPrice()))
+                .sum();
 
         return portfolios.stream().map(p -> {
             PortfolioController.PortfolioResponse response = new PortfolioController.PortfolioResponse();
             ETF etf = p.getEtf();
-            if(etf.getCountry() == CountryEnum.USA){
-                response.setMoney(p.getCount() * etf.getCurrentPrice() * 1395);
-            } else {
-                response.setMoney(p.getCount() * etf.getCurrentPrice());
-            }
+            response.setMoney(p.getCount() * priceConverter.toKrw(etf.getCountry(), etf.getCurrentPrice()));
 
             response.setPercent((response.getMoney() / totalMoney) * 100);
             response.setEtfCode(p.getSymbol());

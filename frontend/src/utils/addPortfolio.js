@@ -14,6 +14,7 @@ export const addPortfolio = async (etfCode, count) => {
     try {
         const response = await fetch(ADD_PORTFOLIO_URL, {
             method: 'POST',
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
             },

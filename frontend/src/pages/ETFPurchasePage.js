@@ -85,12 +85,30 @@ const ETFPurchasePage = () => {
 
     const totalAmount = firstPrice * (parseInt(firstQuantity) || 0) + secondPrice * (parseInt(secondQuantity) || 0);
 
-    const handlePurchase = () => {
-        addPortfolio(etfCode, parseInt(firstQuantity) || 0);
-        addPortfolio(recommendationCode, parseInt(secondQuantity) || 0);
-        console.log(`Added ${firstQuantity} of ${etfCode} to portfolio`);
-        console.log(`Added ${secondQuantity} of ${recommendationCode} to portfolio`);
-        // navigate('/portfolio');
+    const handlePurchase = async () => {
+        const orders = [
+            [etfCode, parseInt(firstQuantity) || 0],
+            [recommendationCode, parseInt(secondQuantity) || 0],
+        ].filter(([, quantity]) => quantity > 0);
+
+        if (orders.length === 0) {
+            alert('구매할 수량을 입력해주세요.');
+            return;
+        }
+
+        try {
+            const responses = await Promise.all(orders.map(([code, quantity]) => addPortfolio(code, quantity)));
+            const failedCodes = orders.filter((_, index) => !responses[index].ok).map(([code]) => code);
+            if (failedCodes.length > 0) {
+                alert(`일부 종목 구매에 실패했습니다: ${failedCodes.join(', ')}`);
+                return;
+            }
+            alert('구매가 완료되었습니다.');
+            navigate('/portfolio');
+        } catch (error) {
+            console.error('구매 중 에러 발생:', error);
+            alert('구매 중 오류가 발생했습니다.');
+        }
     };
 
     return (

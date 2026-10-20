@@ -1,19 +1,20 @@
 from airflow import DAG
+from airflow.models import Variable
 from airflow.operators.python import PythonOperator
 from datetime import datetime
 from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 import logging
+import os
 
 # ChatGPT API 호출을 위한 함수 정의
 def llm_tendency_dag(**kwargs):
     responses = kwargs['dag_run'].conf.get('responses')
-    api_key = kwargs['dag_run'].conf.get('api_key')
-    api_base_url = kwargs['dag_run'].conf.get('api_base_url')
+    api_key = Variable.get('OPENAI_API_KEY', default_var=os.environ.get('OPENAI_API_KEY'))
+    api_base_url = Variable.get('OPENAI_BASE_URL', default_var=os.environ.get('OPENAI_BASE_URL', 'https://api.openai.com/v1'))
 
-    # 로그에 responses와 api_key 출력
+    # 로그에 responses 출력
     logging.info(f"Responses: {responses}")
-    logging.info(f"API Key: {api_key}")
     logging.info(f"API Base URL: {api_base_url}")
     
     # 템플릿 정의
@@ -30,9 +31,9 @@ def llm_tendency_dag(**kwargs):
 4. 시장의 변동성에 크게 흔들리지 않고 투자를 지속할 수 있습니까? (-50: 전혀 그렇지 않다, -25: 약간 그렇지 않다, 0: 중립적, 25: 약간 그렇다, 50: 매우 그렇다)
    - 선택형 : {answer4}, 서술형: {reason4}
 5. 투자 활동에서 오는 스트레스나 불안 같은 감정에 영향을 받지 않으십니까?  (-50: 전혀 그렇지 않다, -25: 약간 그렇지 않다, 0: 중립적, 25: 약간 그렇다, 50: 매우 그렇다)
-   - 선택형 : {answer6}, 서술형: {reason6}
-6. 리스크가 적은 안전한 투자보다는 고위험 고수익 투자에 더 매력을 느끼십니까? (-50: 전혀 그렇지 않다, -25: 약간 그렇지 않다, 0: 중립적, 25: 약간 그렇다, 50: 매우 그렇다)
    - 선택형 : {answer5}, 서술형: {reason5}
+6. 리스크가 적은 안전한 투자보다는 고위험 고수익 투자에 더 매력을 느끼십니까? (-50: 전혀 그렇지 않다, -25: 약간 그렇지 않다, 0: 중립적, 25: 약간 그렇다, 50: 매우 그렇다)
+   - 선택형 : {answer6}, 서술형: {reason6}
 
 서술형 답변을 -50, -25, 0, 25, 50의 점수로 평가하고, 선택형 점수와 서술형 점수를 합산하여 최종 점수를 도출해주세요.
 서술형 답변 평가 기준:
@@ -120,9 +121,4 @@ with DAG(
         python_callable=llm_tendency_dag,
         provide_context=True,
         do_xcom_push=True,  # XCom으로 결과를 푸시
-        op_kwargs={
-            'responses': "{{ dag_run.conf['responses'] }}",
-            'api_key': "{{ dag_run.conf['api_key'] }}",
-            'api_base_url': "{{ dag_run.conf['api_base_url'] }}"
-        }
     )

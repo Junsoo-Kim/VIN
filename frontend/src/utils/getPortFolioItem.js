@@ -6,7 +6,7 @@ export const getPortfolioItem = async () => {
     const userId = getCookie('userId');
 
     try {
-        const response = await fetch(PORTFOLIO_URL + userId);
+        const response = await fetch(PORTFOLIO_URL + userId, { credentials: 'include' });
         const data = await response.json();
         console.log(data);
         if (data === '[]') {
