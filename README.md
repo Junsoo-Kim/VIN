@@ -249,3 +249,22 @@ Redisson 분산 락을 도입하는 과정에서 커스텀 어노테이션(@Dist
 원인은 Spring AOP 프록시 객체의 생명주기(Lifecycle) 충돌에 있었습니다. 데이터베이스 커밋은 @Transactional AOP 밖으로 빠져나가는 순간 실행되는데, 분산 락 AOP가 @Transactional보다 먼저 종료되면 커밋이 끝나기 전에 락이 풀려버립니다. 즉, 락 해제와 DB 커밋 사이의 찰나의 틈에 다른 스레드가 먼저 락을 획득해 아직 커밋되지 않은 데이터를 읽어갈 수 있는 구조였습니다.
 
 이를 해결하기 위해 **퍼사드(Facade) 계층**을 별도로 두어, 락 획득/해제를 담당하는 계층과 @Transactional이 걸린 실제 비즈니스 로직 계층을 서로 다른 빈으로 분리했습니다. Facade가 락을 잡은 상태에서 트랜잭션이 완전히 커밋된 뒤에야 제어가 돌아오도록 호출 순서를 강제함으로써, 커밋 전에 락이 풀리는 문제를 구조적으로 방지할 수 있었습니다.
+
+## 로컬 실행 설정
+
+`docker compose up -d`로 MySQL·Redis·Kafka·Prometheus·Grafana를 띄운 뒤, 아래 값을 필요에 따라 설정합니다.
+
+| 설정 | 기본값 | 설명 |
+| --- | --- | --- |
+| `AIRFLOW_BASE_URL` | `http://localhost:8081/api/v1` | 백엔드가 DAG를 실행할 Airflow REST API 주소 |
+| `AIRFLOW_USERNAME` / `AIRFLOW_PASSWORD` | `admin` / `admin` | Airflow REST API 계정 (로컬 개발용 기본값) |
+| `airflow.timeout-seconds` | `60` | DAG 결과를 기다리는 최대 시간 |
+| `VIN_AUTH_ENABLED` | `true` | `false`면 세션 인증을 끕니다 (벤치마크 스크립트 전용) |
+| `vin.auth.session-ttl-minutes` | `120` | 로그인 세션(`VIN_SESSION` 쿠키) 유효 시간 |
+| `vin.data-dir` | `src/main/data` | 가격 CSV·ETF 메타 데이터 디렉터리 |
+| `vin.seed.enabled` | `false` | `true`면 기동 시 미국/국내 ETF 정보를 DB에 적재 |
+| `vin.exchange-rate.usd-krw` | `1395` | 미국 ETF 가격의 원화 환산 환율 |
+
+OpenAI API 키는 백엔드가 아니라 **Airflow**에 설정합니다. `llm_tendency_dag`는 Airflow Variable `OPENAI_API_KEY`(필요 시 `OPENAI_BASE_URL`)를 읽고, 없으면 Airflow 워커의 같은 이름 환경변수를 사용합니다.
+
+프론트엔드는 `frontend/.env.development`의 `REACT_APP_BACKEND_URL`(기본 `http://localhost:8080`)로 백엔드에 요청합니다.
