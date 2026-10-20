@@ -1,19 +1,20 @@
 from airflow import DAG
+from airflow.models import Variable
 from airflow.operators.python import PythonOperator
 from datetime import datetime
 from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 import logging
+import os
 
 # ChatGPT API 호출을 위한 함수 정의
 def llm_tendency_dag(**kwargs):
     responses = kwargs['dag_run'].conf.get('responses')
-    api_key = kwargs['dag_run'].conf.get('api_key')
-    api_base_url = kwargs['dag_run'].conf.get('api_base_url')
+    api_key = Variable.get('OPENAI_API_KEY', default_var=os.environ.get('OPENAI_API_KEY'))
+    api_base_url = Variable.get('OPENAI_BASE_URL', default_var=os.environ.get('OPENAI_BASE_URL', 'https://api.openai.com/v1'))
 
-    # 로그에 responses와 api_key 출력
+    # 로그에 responses 출력
     logging.info(f"Responses: {responses}")
-    logging.info(f"API Key: {api_key}")
     logging.info(f"API Base URL: {api_base_url}")
     
     # 템플릿 정의
@@ -120,9 +121,4 @@ with DAG(
         python_callable=llm_tendency_dag,
         provide_context=True,
         do_xcom_push=True,  # XCom으로 결과를 푸시
-        op_kwargs={
-            'responses': "{{ dag_run.conf['responses'] }}",
-            'api_key': "{{ dag_run.conf['api_key'] }}",
-            'api_base_url': "{{ dag_run.conf['api_base_url'] }}"
-        }
     )

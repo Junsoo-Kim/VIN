@@ -12,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 
 import java.util.HashMap;
 import java.util.List;
@@ -31,12 +30,6 @@ public class TendencyService {
 
     @Autowired
     private AirflowClient airflowClient;
-
-    @Value("${api.key}")
-    private String apiKey;
-
-    @Value("${api.base-url}")
-    private String apiBaseUrl;
 
     public void saveTendency(List<String> answers, List<String> reasons, String userId) {
         // User를 찾아 tendencyIndex를 확인합니다.
@@ -92,8 +85,6 @@ public class TendencyService {
         responses.put("question6", Map.of("answer", tendency.getAnswer6(), "reason", tendency.getReason6()));
         Map<String, Object> conf = new HashMap<>();
         conf.put("responses", responses);
-        conf.put("api_key", apiKey); // 환경변수에서 읽어온 API 키 사용
-        conf.put("api_base_url", apiBaseUrl); // GMS 프록시 등 커스텀 OpenAI 엔드포인트 사용
 
         logger.info("Evaluating tendency for userId: {}", userId);
         Map<String, Object> result = airflowClient.runAndGetXcom("llm_tendency_dag", "llm_tendency_dag", "return_value", conf);
