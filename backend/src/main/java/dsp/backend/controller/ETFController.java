@@ -80,11 +80,6 @@ public class ETFController {
     @GetMapping("/recommend/{symbol}/{userId}")
 
     public ResponseEntity<Map<String, Object>> recommendETF(@PathVariable String symbol, @PathVariable String userId) {
-        try {
-            Map<String, Object> recommendation = etfService.recommendETF(symbol, userId);
-            return ResponseEntity.ok(recommendation);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(null);
-        }
+        return ResponseEntity.ok(etfService.recommendETF(symbol, userId));
     }
 }

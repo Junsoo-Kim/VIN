@@ -1,5 +1,6 @@
 package dsp.backend.service;
 
+import dsp.backend.airflow.AirflowClient;
 import dsp.backend.utils.CountryEnum;
 import dsp.backend.utils.NaverFinanceUtils;
 import dsp.backend.utils.YahooFinanceUtils;
@@ -29,17 +30,7 @@ import java.util.HashMap;
 import java.net.URLDecoder;
 import java.io.UnsupportedEncodingException;
 
-import org.springframework.web.client.RestTemplate;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.web.util.UriComponentsBuilder;
-import org.springframework.http.client.support.BasicAuthenticationInterceptor;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.web.client.HttpClientErrorException;
 
 @Service
 public class ETFService {
@@ -54,6 +45,9 @@ public class ETFService {
 
     @Autowired
     private TendencyRepository tendencyRepository;
+
+    @Autowired
+    private AirflowClient airflowClient;
 
     public Optional<Map<String, Object>> getETFInfo(String symbol) {
         logger.info("Fetching ETF info for symbol: {}", symbol);
@@ -318,167 +312,20 @@ public class ETFService {
                    .collect(Collectors.toList());
     }
 
-    public Map<String, Object> recommendETF(String symbol, String userId) throws IOException {
-        User user = userRepository.findByUserId(userId).get();
-        ETF etf = etfRepository.findBySymbol(symbol).get();
-        double score = 0.0;
-        boolean tendencyFound = true;
+    public Map<String, Object> recommendETF(String symbol, String userId) {
+        User user = userRepository.findByUserId(userId).orElseThrow(() -> new ResourceNotFoundException("존재하지 않는 사용자"));
+        ETF etf = etfRepository.findBySymbol(symbol).orElseThrow(() -> new ResourceNotFoundException("존재하지 않는 ETF"));
 
-        if (etf.getCountry() == CountryEnum.KOREA){
-            symbol = etf.getLongName();
+        String corrKey = etf.getCountry() == CountryEnum.KOREA ? etf.getLongName() : etf.getSymbol();
+
+        Optional<Tendency> tendency = Optional.ofNullable(user.getTendencyIndex()).flatMap(tendencyRepository::findById);
+        logger.info("Requesting recommendation: symbol={}, tendencyFound={}", corrKey, tendency.isPresent());
+
+        if (tendency.isEmpty()) {
+            return airflowClient.runAndGetXcom("recommend_dag", "recommend_stocks", "recommendation_result",
+                    Map.of("input_stock", corrKey));
         }
-
-        try {
-            Tendency tendency = tendencyRepository.findById(user.getTendencyIndex()).get();
-            score = tendency.getScore();
-        } catch (Exception e) {
-            logger.info("Tendency not found for user: {}", e);
-            tendencyFound = false;
-        }
-
-        if (!tendencyFound) {
-            return getRecByAirflow(symbol);
-        } else{
-            return getRecByAirflowWithTendency(symbol, score);
-        }
-    }
-
-    private Map<String, Object> getRecByAirflow(String symbol) throws IOException{
-        RestTemplate restTemplate = new RestTemplate();
-            restTemplate.getInterceptors().add(new BasicAuthenticationInterceptor("admin", "admin"));
-    
-            String dagRunUrl = "http://localhost:8081/api/v1/dags/recommend_dag/dagRuns";
-            String xcomUrlTemplate = "http://localhost:8081/api/v1/dags/recommend_dag/dagRuns/{dag_run_id}/taskInstances/recommend_stocks/xcomEntries/recommendation_result";
-    
-            logger.info("Triggering DAG for symbol: {}", symbol);
-    
-            // Trigger the DAG
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("conf", Map.of("input_stock", symbol));
-            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(requestBody, headers);
-            ResponseEntity<Map> response;
-            try {
-                response = restTemplate.exchange(dagRunUrl, HttpMethod.POST, requestEntity, Map.class);
-            } catch (Exception e) {
-                logger.error("Failed to trigger DAG", e);
-                throw new IOException("Failed to trigger DAG", e);
-            }
-    
-            // Get the DAG run ID
-            String dagRunId = (String) response.getBody().get("dag_run_id");
-            logger.info("DAG triggered successfully, DAG run ID: {}", dagRunId);
-    
-            // Fetch XCom entries
-            String xcomUrl = UriComponentsBuilder.fromUriString(xcomUrlTemplate)
-                                                 .buildAndExpand(dagRunId)
-                                                 .toUriString();
-            ResponseEntity<String> xcomResponse;
-            ObjectMapper objectMapper = new ObjectMapper();
-            Map<String, Object> xcomResult = null;
-    
-            while (xcomResult == null) {
-                try {
-                    xcomResponse = restTemplate.exchange(xcomUrl, HttpMethod.GET, null, String.class);
-                    xcomResult = objectMapper.readValue(xcomResponse.getBody(), Map.class);
-                } catch (HttpClientErrorException.NotFound e) {
-                    logger.info("XCom entry not found, retrying in 1 second...");
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        throw new IOException("Interrupted while waiting for XCom entry", ie);
-                    }
-                } catch (Exception e) {
-                    logger.error("Failed to fetch XCom entries", e);
-                    throw new IOException("Failed to fetch XCom entries", e);
-                }
-            }
-    
-            // Extract the value field from the XCom result
-            String value = (String) xcomResult.get("value");
-            value = value.replace("'", "\""); // Replace single quotes with double quotes
-            Map<String, Object> recommendation;
-            try {
-                recommendation = objectMapper.readValue(value, Map.class);
-            } catch (Exception e) {
-                logger.error("Failed to parse recommendation value", e);
-                throw new IOException("Failed to parse recommendation value", e);
-            }
-    
-            logger.info("Recommendation fetched successfully for symbol: {}", symbol);
-            return recommendation;
-    }
-
-    private Map<String, Object> getRecByAirflowWithTendency(String symbol, double score) throws IOException {
-        RestTemplate restTemplate = new RestTemplate();
-        restTemplate.getInterceptors().add(new BasicAuthenticationInterceptor("admin", "admin"));
-
-        String dagRunUrl = "http://localhost:8081/api/v1/dags/recommend_with_tendency_dag/dagRuns";
-        String xcomUrlTemplate = "http://localhost:8081/api/v1/dags/recommend_with_tendency_dag/dagRuns/{dag_run_id}/taskInstances/recommend_tendency/xcomEntries/recommendation_result";
-
-        logger.info("Triggering DAG for symbol: {}", symbol);
-
-        // Trigger the DAG
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        Map<String, Object> requestBody = new HashMap<>();
-        Map<String, Object> conf = new HashMap<>();
-        conf.put("input_stock", symbol);
-        conf.put("final_score", score);
-        requestBody.put("conf", conf);
-        HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(requestBody, headers);
-        ResponseEntity<Map> response;
-        try {
-            response = restTemplate.exchange(dagRunUrl, HttpMethod.POST, requestEntity, Map.class);
-        } catch (Exception e) {
-            logger.error("Failed to trigger DAG", e);
-            throw new IOException("Failed to trigger DAG", e);
-        }
-
-        // Get the DAG run ID
-        String dagRunId = (String) response.getBody().get("dag_run_id");
-        logger.info("DAG triggered successfully, DAG run ID: {}", dagRunId);
-
-        // Fetch XCom entries
-        String xcomUrl = UriComponentsBuilder.fromUriString(xcomUrlTemplate)
-                                             .buildAndExpand(dagRunId)
-                                             .toUriString();
-        ResponseEntity<String> xcomResponse;
-        ObjectMapper objectMapper = new ObjectMapper();
-        Map<String, Object> xcomResult = null;
-
-        while (xcomResult == null) {
-            try {
-                xcomResponse = restTemplate.exchange(xcomUrl, HttpMethod.GET, null, String.class);
-                xcomResult = objectMapper.readValue(xcomResponse.getBody(), Map.class);
-            } catch (HttpClientErrorException.NotFound e) {
-                logger.info("XCom entry not found, retrying in 1 second...");
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw new IOException("Interrupted while waiting for XCom entry", ie);
-                }
-            } catch (Exception e) {
-                logger.error("Failed to fetch XCom entries", e);
-                throw new IOException("Failed to fetch XCom entries", e);
-            }
-        }
-
-        // Extract the value field from the XCom result
-        String value = (String) xcomResult.get("value");
-        value = value.replace("'", "\""); // Replace single quotes with double quotes
-        Map<String, Object> recommendation;
-        try {
-            recommendation = objectMapper.readValue(value, Map.class);
-        } catch (Exception e) {
-            logger.error("Failed to parse recommendation value", e);
-            throw new IOException("Failed to parse recommendation value", e);
-        }
-
-        logger.info("Recommendation fetched successfully for symbol: {}", symbol);
-        return recommendation;
+        return airflowClient.runAndGetXcom("recommend_with_tendency_dag", "recommend_tendency", "recommendation_result",
+                Map.of("input_stock", corrKey, "final_score", tendency.get().getScore()));
     }
 }

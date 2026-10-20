@@ -1,6 +1,7 @@
 package dsp.backend.service;
 
 import dsp.backend.Entity.Tendency;
+import dsp.backend.airflow.AirflowClient;
 import dsp.backend.Entity.User;
 import dsp.backend.exception.TendencyNotFoundException;
 import dsp.backend.repository.TendencyRepository;
@@ -9,21 +10,10 @@ import dsp.backend.repository.UserRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.web.util.UriComponentsBuilder;
-import org.springframework.http.client.support.BasicAuthenticationInterceptor;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.web.client.HttpClientErrorException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +29,9 @@ public class TendencyService {
     @Autowired
     private UserRepository userRepository; // UserRepository를 주입받습니다.
 
+    @Autowired
+    private AirflowClient airflowClient;
+
     @Value("${api.key}")
     private String apiKey;
 
@@ -48,9 +41,6 @@ public class TendencyService {
     public void saveTendency(List<String> answers, List<String> reasons, String userId) {
         // User를 찾아 tendencyIndex를 확인합니다.
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
-        if (user.getTendencyIndex() != null) {
-            tendencyRepository.deleteById(user.getTendencyIndex());
-        }
 
         Tendency tendency = new Tendency();
         tendency.setAnswer1(Integer.parseInt(answers.get(0)));
@@ -66,20 +56,20 @@ public class TendencyService {
         tendency.setReason5(reasons.get(4));
         tendency.setReason6(reasons.get(5));
 
-        try {
-            Map<String, Object> result = evaluateTendencyWithDAG(tendency, userId);
-            tendency.setScore(Double.parseDouble((String) result.get("final_score")));
-            tendency.setTendency(TendencyEnum.valueOf((String) result.get("investment_trait")));
-            tendency.setComment((String) result.get("comment"));
-        } catch (IOException e) {
-            logger.error("Error evaluating tendency with DAG", e);
-        }
+        Map<String, Object> result = evaluateTendencyWithDAG(tendency, userId);
+        tendency.setScore(Double.parseDouble((String) result.get("final_score")));
+        tendency.setTendency(TendencyEnum.valueOf((String) result.get("investment_trait")));
+        tendency.setComment((String) result.get("comment"));
 
         tendencyRepository.save(tendency);
 
+        Long previousTendencyIndex = user.getTendencyIndex();
         // User의 tendencyIndex를 설정합니다.
         user.setTendencyIndex(tendency.getId());
         userRepository.save(user);
+        if (previousTendencyIndex != null) {
+            tendencyRepository.deleteById(previousTendencyIndex);
+        }
     }
 
     public Tendency getTendencyByUserId(String userId) {
@@ -92,20 +82,7 @@ public class TendencyService {
         return tendencyRepository.findById(tendencyIndex).orElseThrow(() -> new RuntimeException("Tendency not found"));
     }
 
-    public Map<String, Object> evaluateTendencyWithDAG(Tendency tendency, String userId) throws IOException {
-        RestTemplate restTemplate = new RestTemplate();
-        restTemplate.getInterceptors().add(new BasicAuthenticationInterceptor("admin", "admin"));
-
-        String dagRunUrl = "http://localhost:8081/api/v1/dags/llm_tendency_dag/dagRuns";
-        String xcomUrlTemplate = "http://localhost:8081/api/v1/dags/llm_tendency_dag/dagRuns/{dag_run_id}/taskInstances/llm_tendency_dag/xcomEntries/return_value";
-
-        logger.info("Triggering DAG for userId: {}", userId);
-
-        // Trigger the DAG
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        Map<String, Object> requestBody = new HashMap<>();
-        Map<String, Object> conf = new HashMap<>();
+    public Map<String, Object> evaluateTendencyWithDAG(Tendency tendency, String userId) {
         Map<String, Object> responses = new HashMap<>();
         responses.put("question1", Map.of("answer", tendency.getAnswer1(), "reason", tendency.getReason1()));
         responses.put("question2", Map.of("answer", tendency.getAnswer2(), "reason", tendency.getReason2()));
@@ -113,63 +90,14 @@ public class TendencyService {
         responses.put("question4", Map.of("answer", tendency.getAnswer4(), "reason", tendency.getReason4()));
         responses.put("question5", Map.of("answer", tendency.getAnswer5(), "reason", tendency.getReason5()));
         responses.put("question6", Map.of("answer", tendency.getAnswer6(), "reason", tendency.getReason6()));
+        Map<String, Object> conf = new HashMap<>();
         conf.put("responses", responses);
         conf.put("api_key", apiKey); // 환경변수에서 읽어온 API 키 사용
         conf.put("api_base_url", apiBaseUrl); // GMS 프록시 등 커스텀 OpenAI 엔드포인트 사용
-        requestBody.put("conf", conf);
-        HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(requestBody, headers);
-        ResponseEntity<Map> response;
-        try {
-            response = restTemplate.exchange(dagRunUrl, HttpMethod.POST, requestEntity, Map.class);
-        } catch (Exception e) {
-            logger.error("Failed to trigger DAG", e);
-            throw new IOException("Failed to trigger DAG", e);
-        }
 
-        // Get the DAG run ID
-        String dagRunId = (String) response.getBody().get("dag_run_id");
-        logger.info("DAG triggered successfully, DAG run ID: {}", dagRunId);
-
-        // Fetch XCom entries
-        String xcomUrl = UriComponentsBuilder.fromUriString(xcomUrlTemplate)
-                                             .buildAndExpand(dagRunId)
-                                             .toUriString();
-        ResponseEntity<String> xcomResponse;
-        ObjectMapper objectMapper = new ObjectMapper();
-        Map<String, Object> xcomResult = null;
-
-        while (xcomResult == null) {
-            try {
-                xcomResponse = restTemplate.exchange(xcomUrl, HttpMethod.GET, null, String.class);
-                xcomResult = objectMapper.readValue(xcomResponse.getBody(), Map.class);
-            } catch (HttpClientErrorException.NotFound e) {
-                logger.info("XCom entry not found, retrying in 1 second...");
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw new IOException("Interrupted while waiting for XCom entry", ie);
-                }
-            } catch (Exception e) {
-                logger.error("Failed to fetch XCom entries", e);
-                throw new IOException("Failed to fetch XCom entries", e);
-            }
-        }
-
-        // Extract the value field from the XCom result
-        String value = (String) xcomResult.get("value");
-        value = value.replace("'", "\""); // Replace single quotes with double quotes
-        Map<String, Object> result;
-        try {
-            result = objectMapper.readValue(value, Map.class);
-        } catch (Exception e) {
-            logger.error("Failed to parse result value", e);
-            throw new IOException("Failed to parse result value", e);
-        }
-
+        logger.info("Evaluating tendency for userId: {}", userId);
+        Map<String, Object> result = airflowClient.runAndGetXcom("llm_tendency_dag", "llm_tendency_dag", "return_value", conf);
         logger.info("Result fetched successfully for userId: {}", userId);
-        logger.info("Result: {}", result);
-
         return result;
     }
 }

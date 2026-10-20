@@ -1,6 +1,8 @@
 package dsp.backend.exception;
 
+import dsp.backend.airflow.AirflowException;
 import dsp.backend.aop.LockAcquisitionException;
+import dsp.backend.service.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -13,6 +15,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(LockAcquisitionException.class)
     public ResponseEntity<String> handleLockAcquisitionException(LockAcquisitionException ex, WebRequest request) {
         return new ResponseEntity<>(ex.getMessage(), HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(AirflowException.class)
+    public ResponseEntity<String> handleAirflowException(AirflowException ex, WebRequest request) {
+        return new ResponseEntity<>("분석 서버 처리에 실패했습니다. 잠시 후 다시 시도해주세요.", HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<String> handleResourceNotFoundException(ResourceNotFoundException ex, WebRequest request) {
+        return new ResponseEntity<>(ex.getMessage(), HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler(UserAlreadyExistsException.class)
