@@ -55,6 +55,7 @@ public class TendencyService {
         Tendency tendency = new Tendency();
         tendency.setAnswer1(Integer.parseInt(answers.get(0)));
         tendency.setAnswer2(Integer.parseInt(answers.get(1)));
+        tendency.setAnswer3(Integer.parseInt(answers.get(2)));
         tendency.setAnswer4(Integer.parseInt(answers.get(3)));
         tendency.setAnswer5(Integer.parseInt(answers.get(4)));
         tendency.setAnswer6(Integer.parseInt(answers.get(5)));
