@@ -29,7 +29,7 @@ public class UserService {
 
     public User registerUser(User user) {
         if (!EMAIL_PATTERN.matcher(user.getEmail()).matches()) {
-            throw new RuntimeException("Invalid email format");
+            throw new IllegalArgumentException("Invalid email format");
         }
         if (userRepository.existsByUserId(user.getUserId())) {
             throw new UserAlreadyExistsException("UserId already exists");
@@ -42,7 +42,7 @@ public class UserService {
     }
 
     public User loginUser(String userId, String password, String currentCookie) {
-        if (currentCookie != "") {
+        if (currentCookie != null && !currentCookie.isEmpty()) {
             throw new AlreadyLoggedInException("로그인 상태에서 다시 로그인할 수 없습니다.");
         }
         User user = userRepository.findByUserId(userId)

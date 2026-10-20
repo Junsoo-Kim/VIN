@@ -4,6 +4,7 @@ import dsp.backend.Entity.Tendency;
 import dsp.backend.airflow.AirflowClient;
 import dsp.backend.Entity.User;
 import dsp.backend.exception.TendencyNotFoundException;
+import dsp.backend.exception.UserNotFoundException;
 import dsp.backend.repository.TendencyRepository;
 import dsp.backend.utils.TendencyEnum;
 import dsp.backend.repository.UserRepository;
@@ -33,7 +34,7 @@ public class TendencyService {
 
     public void saveTendency(List<String> answers, List<String> reasons, String userId) {
         // User를 찾아 tendencyIndex를 확인합니다.
-        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException("User not found"));
 
         Tendency tendency = new Tendency();
         tendency.setAnswer1(Integer.parseInt(answers.get(0)));
@@ -66,13 +67,13 @@ public class TendencyService {
     }
 
     public Tendency getTendencyByUserId(String userId) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException("User not found"));
         Long tendencyIndex = user.getTendencyIndex();
         if (tendencyIndex == null) {
             throw new TendencyNotFoundException("설문조사에 응답하지 않았습니다.");
         }
 
-        return tendencyRepository.findById(tendencyIndex).orElseThrow(() -> new RuntimeException("Tendency not found"));
+        return tendencyRepository.findById(tendencyIndex).orElseThrow(() -> new TendencyNotFoundException("Tendency not found"));
     }
 
     public Map<String, Object> evaluateTendencyWithDAG(Tendency tendency, String userId) {

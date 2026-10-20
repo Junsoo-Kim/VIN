@@ -47,7 +47,7 @@ public class PortfolioService {
             etfOptional = etfRepository.findBySymbol(etfCode);
             
         }
-        etfCode = etfOptional.get().getSymbol();
+        etfCode = etfOptional.orElseThrow(() -> new ResourceNotFoundException("존재하지 않는 정보")).getSymbol();
         userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("존재하지 않는 정보"));
         etfRepository.findBySymbol(etfCode).orElseThrow(() -> new ResourceNotFoundException("존재하지 않는 정보"));
 
