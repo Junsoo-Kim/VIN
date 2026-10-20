@@ -22,28 +22,32 @@ import java.util.Set;
 public class AirflowClient {
 
     private static final Logger logger = LoggerFactory.getLogger(AirflowClient.class);
-    private static final String BASE_URL = "http://localhost:8081/api/v1";
     private static final Set<String> FAILED_STATES = Set.of("failed", "upstream_failed");
 
     private final RestTemplate restTemplate;
+    private final String baseUrl;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final long timeoutMillis;
     private final long pollIntervalMillis;
 
-    public AirflowClient(@Value("${airflow.timeout-seconds:60}") long timeoutSeconds,
+    public AirflowClient(@Value("${airflow.base-url}") String baseUrl,
+                         @Value("${airflow.username}") String username,
+                         @Value("${airflow.password}") String password,
+                         @Value("${airflow.timeout-seconds:60}") long timeoutSeconds,
                          @Value("${airflow.poll-interval-millis:1000}") long pollIntervalMillis) {
+        this.baseUrl = baseUrl;
         this.restTemplate = new RestTemplate();
-        this.restTemplate.getInterceptors().add(new BasicAuthenticationInterceptor("admin", "admin"));
+        this.restTemplate.getInterceptors().add(new BasicAuthenticationInterceptor(username, password));
         this.timeoutMillis = timeoutSeconds * 1000;
         this.pollIntervalMillis = pollIntervalMillis;
     }
 
     public Map<String, Object> runAndGetXcom(String dagId, String taskId, String xcomKey, Map<String, Object> conf) {
         String dagRunId = trigger(dagId, conf);
-        String dagRunUrl = UriComponentsBuilder.fromUriString(BASE_URL + "/dags/{dagId}/dagRuns/{dagRunId}")
+        String dagRunUrl = UriComponentsBuilder.fromUriString(baseUrl + "/dags/{dagId}/dagRuns/{dagRunId}")
                 .buildAndExpand(dagId, dagRunId).toUriString();
         String xcomUrl = UriComponentsBuilder
-                .fromUriString(BASE_URL + "/dags/{dagId}/dagRuns/{dagRunId}/taskInstances/{taskId}/xcomEntries/{key}")
+                .fromUriString(baseUrl + "/dags/{dagId}/dagRuns/{dagRunId}/taskInstances/{taskId}/xcomEntries/{key}")
                 .buildAndExpand(dagId, dagRunId, taskId, xcomKey).toUriString();
 
         long deadline = System.currentTimeMillis() + timeoutMillis;
@@ -66,7 +70,7 @@ public class AirflowClient {
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(Map.of("conf", conf), headers);
         try {
             ResponseEntity<Map> response = restTemplate.exchange(
-                    BASE_URL + "/dags/" + dagId + "/dagRuns", HttpMethod.POST, request, Map.class);
+                    baseUrl + "/dags/" + dagId + "/dagRuns", HttpMethod.POST, request, Map.class);
             String dagRunId = (String) response.getBody().get("dag_run_id");
             logger.info("DAG triggered: dagId={}, dagRunId={}", dagId, dagRunId);
             return dagRunId;
