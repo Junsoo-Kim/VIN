@@ -19,4 +19,5 @@ docker run --rm -i \
 
 ## 스크립트 목록
 - `concurrent-buy.js` : 동일 유저·동일 종목에 대해 `POST /portfolio`를 동시에 여러 건 호출해
-  Race Condition(수량 유실) 재현용. **2단계에서 시나리오/검증 로직을 채워 넣습니다.**
+  Race Condition(수량 유실) 재현용. 종료 시(`teardown`) `GET /portfolio/{userId}`로 최종 수량을 조회해
+  "시작 수량 + 요청 수"와 비교하고, 유실이 있으면 `no lost updates` 체크가 실패합니다.
