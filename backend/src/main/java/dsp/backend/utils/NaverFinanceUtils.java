@@ -112,7 +112,6 @@ public class NaverFinanceUtils {
                 isFirstLine = false;
                 continue; // Skip header line
             }
-            logger.info("line: {}", line);
             String[] parts = line.split(",");
             if (parts.length == 4) {
                 String[] slicedParts = Arrays.copyOfRange(parts, 1, 3);

@@ -70,7 +70,6 @@ public class YahooFinanceUtils {
                     isFirstLine = false;
                     continue; // Skip header line
                 }
-                logger.info("line: {}", line);
                 String[] parts = line.split(",");
                 if (parts.length == 2) {
                     Map<String, String> data = new HashMap<>();
