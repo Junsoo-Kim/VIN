@@ -52,7 +52,7 @@ public class ETFController {
     @PostMapping("/simple")
     public ResponseEntity<List<Map<String, Object>>> getLowestPriceETFs(@RequestBody List<String> symbols) {
         try {
-            List<Map<String, Object>> etfDetails = etfService.getsimpleETFPrices(symbols);
+            List<Map<String, Object>> etfDetails = etfService.getETFDetails(symbols);
             return ResponseEntity.ok(etfDetails);
         } catch (Exception e) {
             return ResponseEntity.status(500).body(null);

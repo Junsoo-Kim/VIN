@@ -4,39 +4,26 @@ import os
 # correlation이 저장된 파일 경로를 저장함
 folder_path = os.path.join(os.path.dirname(__file__), 'correlation')
 
-def customized_recommend_stocks(user_id, input_stock):
+def customized_recommend_stocks(input_stock, final_score):
     file_path = os.path.join(folder_path, f"{input_stock}_corr.csv")
-    try:
-        correlation_data = pd.read_csv(file_path, index_col=0, encoding='utf-8')
-    except FileNotFoundError:
-        return f"{input_stock}에 대한 파일을 {folder_path}에서 찾을 수 없습니다."
+    correlation_data = pd.read_csv(file_path, index_col=0, encoding='utf-8')
 
-    try:
-        with open(json_file_path, 'r',encoding='utf-8') as fp:
-            survey_data = json.load(fp)
-    except Exception as e:
-        return f"JSON 파일을 읽는 중 오류 발생: {e}"
-    
-    
-    user_info = survey_data[user_id] # 입력으로 들어온 user_id를 바탕으로 user의 정보를 저장한다.
-    final_score = float(user_info["final_score"]) # user의 final_score는 str타입이기 때문에 float타입으로 변환하여 저장한다.
+    final_score = float(final_score)
 
     correlation_data_sorted = correlation_data.sort_values(by='Correlation') # 상관계수를 오름차순으로 정렬한다.
     corr_values = correlation_data_sorted['Correlation'].values # 상관계수를 배열로 저장한다.
     etf_list = correlation_data_sorted.index.values # ETF 종목 이름을 배열로 저장한다.
-    
+
     # 고정으로 추천할 ETF 3개 ('공격적', '중립적', '보수적')
     etf_max = etf_list[corr_values.argmax()] # argmax()는 corr_values에서 값이 가장 큰 인덱스 값을 반환한다.
     etf_mid = etf_list[len(corr_values) // 2]
     etf_min = etf_list[corr_values.argmin()] # argmax()는 corr_values에서 값이 가장 작은 인덱스 값을 반환한다.
-    
-    # 고정으로 추천할 ETF를 튜플로 리스트에 저장한다.
-    fixed_recommendations = [
-        (etf_max, corr_values[corr_values.argmax()]),
-        (etf_mid, corr_values[len(corr_values) // 2]),
-        (etf_min, corr_values[corr_values.argmin()])
-    ]
-    
+
+    fixed_recommendations = {
+        "보수적 성향 (리스크 헷징 효과가 큰 종목)": [str(etf_min), float(corr_values.min())],
+        "공격적 성향 (리스크 헷징 효과가 약한 종목)": [str(etf_max), float(corr_values.max())],
+        "중립적 성향 (중립적인 투자에 적합한 종목)": [str(etf_mid), float(corr_values[len(corr_values) // 2])]
+    }
 
     # 고정으로 추천할 ETF를 리스트에서 제거한다.
     remaining = correlation_data_sorted.drop(index=[etf_max, etf_mid, etf_min], errors='ignore')
@@ -58,13 +45,16 @@ def customized_recommend_stocks(user_id, input_stock):
         picks = [max(mid_index - 1, 0), min(mid_index + 1, last_index)]
     picks = list(dict.fromkeys(picks))
 
-    dynamic_recommendations = [(etf_list[i], corr_values[i]) for i in picks]
+    dynamic_recommendations = {
+        f"사용자 성향 추천 {n}": [str(etf_list[i]), float(corr_values[i])] for n, i in enumerate(picks, start=1)
+    }
 
     # 최종적으로 추천할 ETF 리스트를 return
-    final_recommendations = fixed_recommendations + dynamic_recommendations
-    return final_recommendations
+    return {**fixed_recommendations, **dynamic_recommendations}
 
-# 테스트:
-input_stock = 'AAXJ'
-recommendations = customized_recommend_stocks("user1", input_stock)
-print(recommendations)
+
+if __name__ == "__main__":
+    # 테스트:
+    input_stock = 'AAXJ'
+    recommendations = customized_recommend_stocks(input_stock, 50)
+    print(recommendations)

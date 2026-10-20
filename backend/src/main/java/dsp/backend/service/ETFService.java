@@ -111,8 +111,11 @@ public class ETFService {
     @Transactional
     public void saveNaverETFInfo(String symbol) throws IOException {
         logger.info("Fetching ETF info for symbol: {}", symbol);
-        Map<String, Object> etfInfo = NaverFinanceUtils.getETFInfo(symbol);
-        CountryEnum country = CountryEnum.KOREA;
+        etfRepository.save(toKoreanEtf(NaverFinanceUtils.getETFInfo(symbol)));
+        logger.info("Saved ETF info for symbol: {}", symbol);
+    }
+
+    private ETF toKoreanEtf(Map<String, Object> etfInfo) {
         ETF etf = new ETF();
         etf.setSymbol((String) etfInfo.get("symbol"));
         etf.setLongName((String) etfInfo.get("longName"));
@@ -128,9 +131,8 @@ public class ETFService {
         etf.setMonthChange((Double) etfInfo.get("monthChange"));
         etf.setQuarterChange((Double) etfInfo.get("quarterChange"));
         etf.setYearChange((Double) etfInfo.get("yearChange"));
-        etf.setCountry(country);
-        etfRepository.save(etf);
-        logger.info("Saved ETF info for symbol: {}", symbol);
+        etf.setCountry(CountryEnum.KOREA);
+        return etf;
     }
 
     public List<Map<String, String>> getAllPrice(String symbol) throws IOException {
@@ -166,8 +168,6 @@ public class ETFService {
         }
     }
 
-    // 첫 수행 시 DB에 저장된 ETF 정보가 �����는 경우에만 주석 풀고 수행
-    // @PostConstruct
     public void saveYahooETFs() {
         List<ETF> etfList = YahooFinanceUtils.getDetailsFromCsv(dataDir.resolve("usa_etfs_info.csv"));
         for (ETF etf : etfList) {
@@ -180,8 +180,6 @@ public class ETFService {
         }
     }
 
-    // 첫 수행 시 DB에 저장된 ETF 정보가 없는 경우에만 주석 풀고 수행
-    // @PostConstruct
     public void saveNaverETFs() {
         logger.info("Starting saveFilteredETFs method");
 
@@ -209,23 +207,7 @@ public class ETFService {
             // 4. 네이버 증권에서 ETF 정보 가져오고 저장하기
             for (String query : queriesKOR){
                 Map<String, String> etfTag = NaverFinanceUtils.searchETFs(query);
-                Map<String, Object> etfInfo = NaverFinanceUtils.getETFInfo(etfTag.get("symbol"));
-                ETF etf = new ETF();
-                etf.setSymbol((String) etfInfo.get("symbol"));
-                etf.setLongName((String) etfInfo.get("longName"));
-                etf.setCurrentPrice((Double) etfInfo.get("currentPrice"));
-                etf.setSharesOutstanding((Long) etfInfo.get("sharesOutstanding"));
-                etf.setWeek52High((Double) etfInfo.get("week52High"));
-                etf.setWeek52Low((Double) etfInfo.get("week52Low"));
-                etf.setBenchmark((String) etfInfo.get("benchmark"));
-                etf.setIpoDate((String) etfInfo.get("ipoDate"));
-                etf.setExpenseRatio(String.valueOf(etfInfo.get("expenseRatio")));
-                etf.setFundManager((String) etfInfo.get("fundManager"));
-                etf.setNavPrice((Double) etfInfo.get("navPrice"));
-                etf.setMonthChange((Double) etfInfo.get("monthChange"));
-                etf.setQuarterChange((Double) etfInfo.get("quarterChange"));
-                etf.setYearChange((Double) etfInfo.get("yearChange"));
-                etf.setCountry(CountryEnum.KOREA);
+                ETF etf = toKoreanEtf(NaverFinanceUtils.getETFInfo(etfTag.get("symbol")));
                 etfRepository.save(etf);
                 logger.info("Saved ETF info for symbol: {}", etf.getSymbol());
             }  
@@ -234,39 +216,6 @@ public class ETFService {
         }
 
         logger.info("Completed saveFilteredETFs method");
-    }
-
-    public List<Map<String, Object>> getsimpleETFPrices(List<String> symbols) throws IOException {
-        List<ETF> etfs = etfRepository.findBySymbolIn(symbols);
-        List<Map<String, Object>> etfDetails = new ArrayList<>();
-        for (ETF etf : etfs) {
-            logger.info("Processing ETF: {}", etf);
-            Map<String, Object> etfDetail = new HashMap<>();
-            etfDetail.put("symbol", etf.getSymbol());
-            etfDetail.put("etfName", etf.getLongName());
-            etfDetail.put("etfPrice", (double) Math.round(priceConverter.toKrw(etf.getCountry(), etf.getCurrentPrice())));
-            etfDetail.put("Country", etf.getCountry().name());
-            etfDetail.put("fundmanager", etf.getFundManager());
-
-            List<Map<String, String>> priceData;
-            if (etf.getCountry() == CountryEnum.KOREA) {
-                priceData = NaverFinanceUtils.getAllNaverPrice(dataDir, etf.getLongName());
-                etfDetail.put("chartPrice", priceData.stream()
-                    .skip(Math.max(0, priceData.size() - 36))
-                    .map(data -> data.get("price"))
-                    .collect(Collectors.toList()));
-            } else if (etf.getCountry() == CountryEnum.USA) {
-                priceData = toKrw(etf.getCountry(), YahooFinanceUtils.getAllYahooPrice(dataDir, etf.getSymbol()));
-                etfDetail.put("chartPrice", priceData.stream()
-                    .skip(Math.max(0, priceData.size() - 11))
-                    .map(data -> data.get("price"))
-                    .collect(Collectors.toList()));
-            }
-
-            etfDetails.add(etfDetail);
-        }
-
-        return etfDetails;
     }
 
     public List<Map<String, Object>> getETFDetails(List<String> symbols) throws IOException {
