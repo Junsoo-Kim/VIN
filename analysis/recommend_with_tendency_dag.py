@@ -58,7 +58,7 @@ def customized_recommend_stocks(**kwargs):
         index = mid_index + int(abs(ratio) * mid_index)
         index = min(len(corr_values) - 1, index)
 
-    if final_score != 0:  # 공격적 또는 보수적
+    if not (-40 <= final_score <= 40):  # 공격적 또는 보수적
         etf_dynamic_2_index = index - 1 if index > 0 else index + 1
         etf_dynamic_2 = etf_list[etf_dynamic_2_index]
     
